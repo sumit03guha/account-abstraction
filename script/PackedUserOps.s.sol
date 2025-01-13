@@ -17,13 +17,13 @@ contract PackedUserOps is Script {
         address entryPoint,
         address account,
         bytes calldata callData
-    ) external view returns (PackedUserOperation memory) {
+    ) external view returns (PackedUserOperation memory, bytes32) {
         PackedUserOperation memory userOps = _generatePackedUserOps(account, callData);
         bytes32 userOpsHash = IEntryPoint(entryPoint).getUserOpHash(userOps);
-        bytes memory signature = _signUserOps(userOpsHash, account);
+        (bytes memory signature, bytes32 digest) = _signUserOps(userOpsHash, account);
         userOps.signature = signature;
 
-        return userOps;
+        return (userOps, digest);
     }
 
     function _generatePackedUserOps(address account, bytes calldata callData)
@@ -54,12 +54,12 @@ contract PackedUserOps is Script {
     function _signUserOps(bytes32 userOpsHash, address account)
         private
         pure
-        returns (bytes memory)
+        returns (bytes memory, bytes32)
     {
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(userOpsHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(account, ethSignedMessageHash);
-        bytes memory signature = abi.encode(r, s, v);
+        bytes memory signature = abi.encodePacked(r, s, v);
 
-        return signature;
+        return (signature, ethSignedMessageHash);
     }
 }
