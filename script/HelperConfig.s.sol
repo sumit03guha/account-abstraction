@@ -22,7 +22,7 @@ contract HelperConfig is Script {
     NetworkConfig private _localNetworkConfig;
     mapping(uint256 chainId => NetworkConfig) private _networConfigs;
 
-    address private _dummyAccount = makeAddr("DUMMY_ACCOUNT");
+    // address private _dummyAccount = makeAddr("DUMMY_ACCOUNT");
 
     function getConfig() external returns (NetworkConfig memory) {
         return _getConfigByChainId(block.chainid);
@@ -43,7 +43,11 @@ contract HelperConfig is Script {
     function _getOrDeployAnvilChainConfig() private returns (NetworkConfig memory) {
         if (_localNetworkConfig.entryPoint != address(0)) return _localNetworkConfig;
 
-        vm.startBroadcast(_dummyAccount);
+        string memory mnemonic = "test test test test test test test test test test test junk";
+
+        (address deployer,) = deriveRememberKey(mnemonic, 0);
+
+        vm.startBroadcast(deployer);
 
         EntryPoint entryPoint = new EntryPoint();
         ERC20Mock erc20Mock = new ERC20Mock();
@@ -52,7 +56,7 @@ contract HelperConfig is Script {
 
         _localNetworkConfig = NetworkConfig({
             entryPoint: address(entryPoint),
-            account: _dummyAccount,
+            account: deployer,
             usdc: address(erc20Mock)
         });
 
@@ -62,7 +66,7 @@ contract HelperConfig is Script {
     function _getSepoliaConfig() private view returns (NetworkConfig memory) {
         return NetworkConfig({
             entryPoint: _ENTRY_POINT_SEPOLIA_ADDRESS,
-            account: _dummyAccount,
+            account: address(0),
             usdc: _USDC_SEPOLIA_ADDRESS
         });
     }
