@@ -16,30 +16,30 @@ contract PackedUserOps is Script {
     function generateSignedPackedUserOps(
         address entryPoint,
         address account,
+        address simpleAccount,
         bytes calldata callData
-    ) external view returns (PackedUserOperation memory, bytes32) {
-        PackedUserOperation memory userOps = _generatePackedUserOps(account, callData);
+    ) external view returns (PackedUserOperation memory, bytes32, bytes32) {
+        PackedUserOperation memory userOps = _generatePackedUserOps(simpleAccount, callData);
         bytes32 userOpsHash = IEntryPoint(entryPoint).getUserOpHash(userOps);
         (bytes memory signature, bytes32 digest) = _signUserOps(userOpsHash, account);
         userOps.signature = signature;
 
-        return (userOps, digest);
+        return (userOps, userOpsHash, digest);
     }
 
-    function _generatePackedUserOps(address account, bytes calldata callData)
+    function _generatePackedUserOps(address simpleAccount, bytes calldata callData)
         private
         view
         returns (PackedUserOperation memory)
     {
-        uint256 nonce = vm.getNonce(account);
-
+        uint256 nonce = vm.getNonce(simpleAccount) - 1; // EIP-161 : Deployment of the SimpleAccount increments its nonce by 1.
         uint128 verificationGasLimit = 16777216;
         uint128 callGasLimit = verificationGasLimit;
         uint128 maxPriorityFeePerGas = 256;
         uint128 maxFeePerGas = maxPriorityFeePerGas;
 
         return PackedUserOperation({
-            sender: account,
+            sender: simpleAccount,
             nonce: nonce,
             initCode: hex"",
             callData: callData,
