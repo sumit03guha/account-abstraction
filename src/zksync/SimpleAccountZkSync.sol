@@ -24,7 +24,8 @@ import { Utils } from "@era-contracts/contracts/libraries/Utils.sol";
 import {
     SimpleAccountZkSync__OutOfBalance,
     SimpleAccountZkSync__NotFromBootloader,
-    SimpleAccountZkSync__ExecutionFailed
+    SimpleAccountZkSync__ExecutionFailed,
+    SimpleAccountZkSync__NotFromBootloaderOrOwner
 } from "./Errors.sol";
 
 contract SimpleAccountZkSync is IAccount, Ownable {
@@ -66,6 +67,8 @@ contract SimpleAccountZkSync is IAccount, Ownable {
         bytes32 _suggestedSignedHash,
         Transaction calldata _transaction
     ) external payable {
+        _requireFromBootloaderOrOwner();
+
         address to = address(uint160(_transaction.to));
         uint128 value = Utils.safeCastToU128(_transaction.value);
         bytes memory data = _transaction.data;
@@ -104,6 +107,12 @@ contract SimpleAccountZkSync is IAccount, Ownable {
     function _requireFromBootloader() private view {
         if (msg.sender != BOOTLOADER_FORMAL_ADDRESS) {
             revert SimpleAccountZkSync__NotFromBootloader();
+        }
+    }
+
+    function _requireFromBootloaderOrOwner() private view {
+        if (msg.sender != BOOTLOADER_FORMAL_ADDRESS && msg.sender != owner()) {
+            revert SimpleAccountZkSync__NotFromBootloaderOrOwner();
         }
     }
 }
