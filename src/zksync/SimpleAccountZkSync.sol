@@ -12,15 +12,19 @@ import {
 import { INonceHolder } from "@era-contracts/contracts/interfaces/INonceHolder.sol";
 import {
     NONCE_HOLDER_SYSTEM_CONTRACT,
-    BOOTLOADER_FORMAL_ADDRESS
+    BOOTLOADER_FORMAL_ADDRESS,
+    DEPLOYER_SYSTEM_CONTRACT
 } from "@era-contracts/contracts/Constants.sol";
 import { Transaction } from "@era-contracts/contracts/libraries/MemoryTransactionHelper.sol";
 import { SystemContractsCaller } from "@era-contracts/contracts/libraries/SystemContractsCaller.sol";
 import { MemoryTransactionHelper } from
     "@era-contracts/contracts/libraries/MemoryTransactionHelper.sol";
+import { Utils } from "@era-contracts/contracts/libraries/Utils.sol";
 
 import {
-    SimpleAccountZkSync__OutOfBalance, SimpleAccountZkSync__NotFromBootloader
+    SimpleAccountZkSync__OutOfBalance,
+    SimpleAccountZkSync__NotFromBootloader,
+    SimpleAccountZkSync__ExecutionFailed
 } from "./Errors.sol";
 
 contract SimpleAccountZkSync is IAccount, Ownable {
@@ -61,7 +65,25 @@ contract SimpleAccountZkSync is IAccount, Ownable {
         bytes32 _txHash,
         bytes32 _suggestedSignedHash,
         Transaction calldata _transaction
-    ) external payable { }
+    ) external payable {
+        address to = address(uint160(_transaction.to));
+        uint128 value = Utils.safeCastToU128(_transaction.value);
+        bytes memory data = _transaction.data;
+
+        if (to == address(DEPLOYER_SYSTEM_CONTRACT)) {
+            SystemContractsCaller.systemCallWithPropagatedRevert(uint32(gasleft()), to, value, data);
+        } else {
+            bool success;
+
+            assembly {
+                success := call(gas(), to, value, add(data, 0x20), mload(data), 0, 0)
+            }
+
+            if (!success) {
+                revert SimpleAccountZkSync__ExecutionFailed();
+            }
+        }
+    }
 
     // There is no point in providing possible signed hash in the `executeTransactionFromOutside` method,
     // since it typically should not be trusted.
