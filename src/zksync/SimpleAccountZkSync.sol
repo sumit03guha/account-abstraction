@@ -25,7 +25,8 @@ import {
     SimpleAccountZkSync__OutOfBalance,
     SimpleAccountZkSync__NotFromBootloader,
     SimpleAccountZkSync__ExecutionFailed,
-    SimpleAccountZkSync__NotFromBootloaderOrOwner
+    SimpleAccountZkSync__NotFromBootloaderOrOwner,
+    SimpleAccountZkSync__PayForTransactionFailed
 } from "./Errors.sol";
 
 contract SimpleAccountZkSync is IAccount, Ownable {
@@ -96,7 +97,12 @@ contract SimpleAccountZkSync is IAccount, Ownable {
         bytes32 _txHash,
         bytes32 _suggestedSignedHash,
         Transaction calldata _transaction
-    ) external payable { }
+    ) external payable {
+        bool success = _transaction.payToTheBootloader();
+        if (!success) {
+            revert SimpleAccountZkSync__PayForTransactionFailed();
+        }
+    }
 
     function prepareForPaymaster(
         bytes32 _txHash,

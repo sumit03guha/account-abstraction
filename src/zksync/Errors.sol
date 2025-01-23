@@ -6,3 +6,4 @@ error SimpleAccountZkSync__OutOfBalance();
 error SimpleAccountZkSync__NotFromBootloader();
 error SimpleAccountZkSync__ExecutionFailed();
 error SimpleAccountZkSync__NotFromBootloaderOrOwner();
+error SimpleAccountZkSync__PayForTransactionFailed();
