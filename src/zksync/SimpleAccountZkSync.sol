@@ -34,13 +34,55 @@ contract SimpleAccountZkSync is IAccount, Ownable {
 
     constructor() Ownable(msg.sender) { }
 
+    receive() external payable { }
+
     function validateTransaction(
-        bytes32 _txHash,
-        bytes32 _suggestedSignedHash,
+        bytes32, /*_txHash*/
+        bytes32, /*_suggestedSignedHash*/
         Transaction calldata _transaction
     ) external payable returns (bytes4 magic) {
         _requireFromBootloader();
 
+        return _validateTransaction(_transaction);
+    }
+
+    function executeTransaction(
+        bytes32, /*_txHash*/
+        bytes32, /*_suggestedSignedHash*/
+        Transaction calldata _transaction
+    ) external payable {
+        _requireFromBootloaderOrOwner();
+        _executeTransaction(_transaction);
+    }
+
+    // There is no point in providing possible signed hash in the `executeTransactionFromOutside` method,
+    // since it typically should not be trusted.
+    function executeTransactionFromOutside(Transaction calldata _transaction) external payable {
+        _validateTransaction(_transaction);
+        _executeTransaction(_transaction);
+    }
+
+    function payForTransaction(
+        bytes32, /*_txHash*/
+        bytes32, /*_suggestedSignedHash*/
+        Transaction calldata _transaction
+    ) external payable {
+        bool success = _transaction.payToTheBootloader();
+        if (!success) {
+            revert SimpleAccountZkSync__PayForTransactionFailed();
+        }
+    }
+
+    function prepareForPaymaster(
+        bytes32, /*_txHash*/
+        bytes32, /*_possibleSignedHash*/
+        Transaction calldata _transaction
+    ) external payable { }
+
+    function _validateTransaction(Transaction calldata _transaction)
+        private
+        returns (bytes4 magic)
+    {
         SystemContractsCaller.systemCallWithPropagatedRevert(
             uint32(gasleft()),
             address(NONCE_HOLDER_SYSTEM_CONTRACT),
@@ -63,13 +105,7 @@ contract SimpleAccountZkSync is IAccount, Ownable {
         }
     }
 
-    function executeTransaction(
-        bytes32 _txHash,
-        bytes32 _suggestedSignedHash,
-        Transaction calldata _transaction
-    ) external payable {
-        _requireFromBootloaderOrOwner();
-
+    function _executeTransaction(Transaction calldata _transaction) private {
         address to = address(uint160(_transaction.to));
         uint128 value = Utils.safeCastToU128(_transaction.value);
         bytes memory data = _transaction.data;
@@ -88,27 +124,6 @@ contract SimpleAccountZkSync is IAccount, Ownable {
             }
         }
     }
-
-    // There is no point in providing possible signed hash in the `executeTransactionFromOutside` method,
-    // since it typically should not be trusted.
-    function executeTransactionFromOutside(Transaction calldata _transaction) external payable { }
-
-    function payForTransaction(
-        bytes32 _txHash,
-        bytes32 _suggestedSignedHash,
-        Transaction calldata _transaction
-    ) external payable {
-        bool success = _transaction.payToTheBootloader();
-        if (!success) {
-            revert SimpleAccountZkSync__PayForTransactionFailed();
-        }
-    }
-
-    function prepareForPaymaster(
-        bytes32 _txHash,
-        bytes32 _possibleSignedHash,
-        Transaction calldata _transaction
-    ) external payable { }
 
     function _requireFromBootloader() private view {
         if (msg.sender != BOOTLOADER_FORMAL_ADDRESS) {
