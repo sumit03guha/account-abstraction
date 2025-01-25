@@ -26,7 +26,8 @@ import {
     SimpleAccountZkSync__NotFromBootloader,
     SimpleAccountZkSync__ExecutionFailed,
     SimpleAccountZkSync__NotFromBootloaderOrOwner,
-    SimpleAccountZkSync__PayForTransactionFailed
+    SimpleAccountZkSync__PayForTransactionFailed,
+    SimpleAccountZkSync__MagicValidationFailed
 } from "./Errors.sol";
 
 contract SimpleAccountZkSync is IAccount, Ownable {
@@ -58,7 +59,10 @@ contract SimpleAccountZkSync is IAccount, Ownable {
     // There is no point in providing possible signed hash in the `executeTransactionFromOutside` method,
     // since it typically should not be trusted.
     function executeTransactionFromOutside(Transaction calldata _transaction) external payable {
-        _validateTransaction(_transaction);
+        bytes4 magic = _validateTransaction(_transaction);
+        if (magic != ACCOUNT_VALIDATION_SUCCESS_MAGIC) {
+            revert SimpleAccountZkSync__MagicValidationFailed();
+        }
         _executeTransaction(_transaction);
     }
 
